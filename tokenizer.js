@@ -13,12 +13,14 @@ module.exports = function(source) {
     var seperators = [',', '.', ':', ';', ':=', '?', 'step',
                       'until', 'while', 'comment'];
 
+    var relationals = ['<', '≤', '=', '≥', '>', '≠'];
+
     try {
         for (i = 0; i < source.length; i++) {
             if ([' ', '\t', '\n'].indexOf(source[i]) !== -1) {
                 saveCurrentToken(i);
                 currentToken = '';
-            } else if (['<', '≤', '=', '≥', '>', '≠'].indexOf(source[i]) !== -1) {
+            } else if (relationals.indexOf(source[i]) !== -1) {
                 saveCurrentToken(i);
                 currentToken = '';
                 tokens.push(makeStringToken(source[i], i - 1, 'relationals',
@@ -99,8 +101,7 @@ function makeToken(str, startPos, lineNumber, columnNumber) {
             lineNumber: lineNumber,
             columnNumber: columnNumber
         };
-    } else if ([',', '.', ':', ';', ':=', '?', 'step',
-                'until', 'while', 'comment'].indexOf(str) !== -1) {
+    } else if (seperators.indexOf(str) !== -1) {
         return makeStringToken(str, startPos, 'seperator',
             lineNumber, columnNumber);
     } else if (['(', ')'].indexOf(str) !== -1) {
