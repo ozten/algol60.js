@@ -5,7 +5,8 @@ module.exports = function(source) {
 
     var tokens = [];
     var currentToken = '';
-    var lineNumber = 0;
+    var lineNumber = 1;
+    var columnNumber = 1;
     var i;
 
     var arithmetics = ['+', '-', '*', '/', '%', '^'];
@@ -14,48 +15,43 @@ module.exports = function(source) {
 
     try {
         for (i = 0; i < source.length; i++) {
-            if (currentToken.length > 0 &&
-                [' ', '\t', '\n'].indexOf(source[i]) !== -1) {
-                tokens.push(makeToken(currentToken, i - currentToken.length));
+            if ([' ', '\t', '\n'].indexOf(source[i]) !== -1) {
+                saveCurrentToken(i);
                 currentToken = '';
-            } else if ([' ', '\t', '\n'].indexOf(source[i]) !== -1) {
-                // Throw away extra whitespace
             } else if (['<', '≤', '=', '≥', '>', '≠'].indexOf(source[i]) !== -1) {
-                if (currentToken.length > 0) {
-                    // Previous token
-                    tokens.push(makeToken(currentToken, i - currentToken.length));    
-                }
-                tokens.push(makeStringToken(source[i], i - 1, 'relationals'));
+                saveCurrentToken(i);
                 currentToken = '';
+                tokens.push(makeStringToken(source[i], i - 1, 'relationals',
+                    lineNumber, columnNumber));
+
             } else if (seperators.indexOf(source[i]) !== -1) {
-                if (currentToken.length > 0) {
-                    // Previous token
-                    tokens.push(makeToken(currentToken, i - currentToken.length));    
-                }
-                tokens.push(makeStringToken(source[i], i - 1, 'seperators'));
+                saveCurrentToken(i);
                 currentToken = '';
+                tokens.push(makeStringToken(source[i], i - 1, 'seperators',
+                    lineNumber, columnNumber));
+
             } else if (arithmetics.indexOf(source[i]) !== -1) {
-                if (currentToken.length > 0) {
-                    // Previous token
-                    tokens.push(makeToken(currentToken, i - currentToken.length));    
-                }
-                tokens.push(makeStringToken(source[i], i - 1, 'arithmetics'));
+                saveCurrentToken(i);
+                currentToken = '';
+                tokens.push(makeStringToken(source[i], i - 1, 'arithmetics',
+                    lineNumber, columnNumber));
+            } else if (['(', ')', ';'].indexOf(source[i]) !== -1) {
+                saveCurrentToken(i);
                 currentToken = '';
 
-            } else if (['(', ')', ';'].indexOf(source[i]) !== -1) {
-                if (currentToken.length > 0) {
-                    // Previous token
-                    tokens.push(makeToken(currentToken, i - currentToken.length));    
-                }
-                
                 // This seperator token
-                tokens.push(makeToken(source[i], i - 1));
-                currentToken = '';
+                tokens.push(makeToken(source[i], i - 1,
+                    lineNumber, columnNumber));
+
             } else {
                 currentToken += source[i];
             }
+
             if (source[i] === '\n') {
                 lineNumber += 1;
+                columnNumber = 1;
+            } else {
+                columnNumber += 1;
             }
         }
         return tokens;
@@ -65,37 +61,56 @@ module.exports = function(source) {
         }
         console.error(e);
     }
+    function saveCurrentToken(i) {
+        'use strict';
+        if (tokens === undefined || currentToken === undefined || i === undefined) {
+            throw new Error('Bad caller of saveCurrentToken');
+        }
+        if (currentToken.length > 0) {
+            // Previous token
+            tokens.push(makeToken(currentToken, i - currentToken.length,
+                lineNumber, columnNumber - currentToken.length));
+        }
+    }
 };
 
-function makeStringToken(str, startPos, type) {
+function makeStringToken(str, startPos, type, lineNumber, columnNumber) {
     return {
-        type: 'name',
+        type: type,
         value: str,
         start: startPos,
-        length: str.length
+        length: str.length,
+        lineNumber: lineNumber,
+        columnNumber: columnNumber
     };
 }
 
-function makeToken(str, startPos) {
+function makeToken(str, startPos, lineNumber, columnNumber) {
     'use strict';
     if (util.isAlphabetic(str[0])) {
-        return makeStringToken(str, startPos, 'name');    
+        return makeStringToken(str, startPos, 'name',
+            lineNumber, columnNumber);
     } else if (util.isNumeric(str[0])) {
         return {
             type: 'literal',
             value: parseInt(str, 10),
             start: startPos,
-            length: str.length
+            length: str.length,
+            lineNumber: lineNumber,
+            columnNumber: columnNumber
         };
     } else if ([',', '.', ':', ';', ':=', '?', 'step',
                 'until', 'while', 'comment'].indexOf(str) !== -1) {
-        return makeStringToken(str, startPos, 'seperator');
+        return makeStringToken(str, startPos, 'seperator',
+            lineNumber, columnNumber);
     } else if (['(', ')'].indexOf(str) !== -1) {
-        return makeStringToken(str, startPos, 'brackets');
+        return makeStringToken(str, startPos, 'brackets',
+            lineNumber, columnNumber);
 
     } else {
         console.log(typeof str + '_' + str + '_' + str.length);
-        throw new Error('Unknown Token Type: ' + str);
+        throw new Error('Unknown Token Type: ' + str + ' line number: ' +
+            lineNumber + 'column number:' + columnNumber);
     }
 }
-    
+

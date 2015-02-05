@@ -49,5 +49,9 @@ function lex(source) {
 }
 
 fs.readFile(process.argv[2], {encoding: 'utf8'}, function(err, data) {
-	console.log(tokenizer(data));
+	var tokens = tokenizer(data);
+	for (var i=0; i<tokens.length; i++) {
+		console.log(i, tokens[i]);	
+	}
+	
 });
