@@ -1,5 +1,16 @@
 var util = require('./util');
 
+var arithmetics = ['+', '-', '*', '/', '%', '^'];
+var relationals = ['<', '≤', '=', '≥', '>', '≠'];
+var sequentials = ['goto', 'if', 'then', 'else', 'for', 'do'];
+
+var seperators = [',', '.', ':', ';', ':=', '?', 'step',
+                  'until', 'while', 'comment'];
+var brackets = ['(', ')', '[', ']', '`', "'", 'begin', 'end'];
+var declarators = ['own', 'boolean', 'integer', 'real', 'array', 'switch',
+    'procedure'];
+var specificators = ['string', 'label', 'value'];
+
 module.exports = function(source) {
     'use strict';
 
@@ -9,11 +20,9 @@ module.exports = function(source) {
     var columnNumber = 1;
     var i;
 
-    var arithmetics = ['+', '-', '*', '/', '%', '^'];
-    var seperators = [',', '.', ':', ';', ':=', '?', 'step',
-                      'until', 'while', 'comment'];
 
-    var relationals = ['<', '≤', '=', '≥', '>', '≠'];
+
+
 
     try {
         for (i = 0; i < source.length; i++) {
@@ -37,7 +46,7 @@ module.exports = function(source) {
                 currentToken = '';
                 tokens.push(makeStringToken(source[i], i - 1, 'arithmetics',
                     lineNumber, columnNumber));
-            } else if (['(', ')', ';'].indexOf(source[i]) !== -1) {
+            } else if (brackets.indexOf(source[i]) !== -1) {
                 saveCurrentToken(i);
                 currentToken = '';
 
@@ -89,7 +98,18 @@ function makeStringToken(str, startPos, type, lineNumber, columnNumber) {
 
 function makeToken(str, startPos, lineNumber, columnNumber) {
     'use strict';
-    if (util.isAlphabetic(str[0])) {
+
+    if (sequentials.indexOf(str) !== -1) {
+        return makeStringToken(str, startPos, 'sequential',
+            lineNumber, columnNumber);
+
+    } else if (specificators.indexOf(str) !== -1) {
+        return makeStringToken(str, startPos, 'specificator',
+            lineNumber, columnNumber);
+    } else if (declarators.indexOf(str) !== -1) {
+        return makeStringToken(str, startPos, 'declarator',
+            lineNumber, columnNumber);
+    } else if (util.isAlphabetic(str[0])) {
         return makeStringToken(str, startPos, 'name',
             lineNumber, columnNumber);
     } else if (util.isNumeric(str[0])) {
@@ -104,7 +124,7 @@ function makeToken(str, startPos, lineNumber, columnNumber) {
     } else if (seperators.indexOf(str) !== -1) {
         return makeStringToken(str, startPos, 'seperator',
             lineNumber, columnNumber);
-    } else if (['(', ')'].indexOf(str) !== -1) {
+    } else if (brackets.indexOf(str) !== -1) {
         return makeStringToken(str, startPos, 'brackets',
             lineNumber, columnNumber);
 
