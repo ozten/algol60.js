@@ -4,7 +4,7 @@ var arithmetics = ['+', '-', '*', '/', '%', '^'];
 var relationals = ['<', '≤', '=', '≥', '>', '≠'];
 var sequentials = ['goto', 'if', 'then', 'else', 'for', 'do'];
 
-var seperators = [',', '.', ':', ';', ':=', '?', 'step',
+var seperators = [',', '.', ':', ':=', '?', 'step',
                   'until', 'while', 'comment'];
 var brackets = ['(', ')', '[', ']', '`', "'", 'begin', 'end'];
 var declarators = ['own', 'boolean', 'integer', 'real', 'array', 'switch',
@@ -20,13 +20,9 @@ module.exports = function(source) {
     var columnNumber = 1;
     var i;
 
-
-
-
-
     try {
         for (i = 0; i < source.length; i++) {
-            if ([' ', '\t', '\n'].indexOf(source[i]) !== -1) {
+            if ([' ', '\t', '\n', ';'].indexOf(source[i]) !== -1) {
                 saveCurrentToken(i);
                 currentToken = '';
             } else if (relationals.indexOf(source[i]) !== -1) {
@@ -65,6 +61,14 @@ module.exports = function(source) {
                 columnNumber += 1;
             }
         }
+        tokens.push({
+            type: 'eof',
+            value: 'EOF',
+            start: i + 1,
+            length: 1,
+            lineNumber: lineNumber + 1,
+            columnNumber: 0
+        })
         return tokens;
     } catch (e) {
         for (var j in tokens) {
@@ -109,9 +113,6 @@ function makeToken(str, startPos, lineNumber, columnNumber) {
     } else if (declarators.indexOf(str) !== -1) {
         return makeStringToken(str, startPos, 'declarator',
             lineNumber, columnNumber);
-    } else if (util.isAlphabetic(str[0])) {
-        return makeStringToken(str, startPos, 'name',
-            lineNumber, columnNumber);
     } else if (util.isNumeric(str[0])) {
         return {
             type: 'literal',
@@ -127,7 +128,9 @@ function makeToken(str, startPos, lineNumber, columnNumber) {
     } else if (brackets.indexOf(str) !== -1) {
         return makeStringToken(str, startPos, 'brackets',
             lineNumber, columnNumber);
-
+    } else if (util.isAlphabetic(str[0])) {
+        return makeStringToken(str, startPos, 'name',
+            lineNumber, columnNumber);
     } else {
         console.log(typeof str + '_' + str + '_' + str.length);
         throw new Error('Unknown Token Type: ' + str + ' line number: ' +
