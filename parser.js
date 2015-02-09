@@ -13,9 +13,9 @@ module.exports = function(tokens) {
     tokenIndex++;
     currentToken = tokenIndex < tokens.length ? tokens[tokenIndex] : null;
     nextToken = tokenIndex + 1 < tokens.length ? tokens[tokenIndex + 1] : null;
-    
+
   }
-  function consumeType(type) {    
+  function consumeType(type) {
     if (currentToken.type === type) {
       var t = currentToken;
       advanceTokenStream();
@@ -59,6 +59,17 @@ module.exports = function(tokens) {
       ')'].join('');
   };
 
+  function BlockExpression(expressions) {
+    this.expressions = expressions;
+  }
+  BlockExpression.prototype.toString = function() {
+    var exp = "";
+    this.expressions.each(function(e) {
+      exp += e.toString();
+    });
+    return ['(BlockExpression ', exp].join('');
+  };
+
 
   function BlockVarExpression(name, type) {
     this.name = name;
@@ -68,6 +79,64 @@ module.exports = function(tokens) {
     return ['(BlockVarExpression name=', this.name, ':', this.type,
       ')'].join('');
   };
+
+  function IfExpression(test, thenBlock, elseBlock) {
+    this.test = test;
+    this.thenBlock = thenBlock;
+    this.elseBlock = elseBlock;
+  };
+  IfExpression.prototype.toString = function() {
+    return ['(IfExpression test=', this.test, '?', this.thenBlock,
+      this.elseBlock, ')'].join('');
+  };
+
+  function TestExpression(left, relational, right) {
+    this.left = left;
+    this.relational = relational;
+    this.right = right;
+  }
+  TestExpression.prototype.toString = function() {
+    return ['(TestExpression ', this.left, this.relational, this.right,
+      ')'].join('');
+  };
+
+  function VariableExpression(name) {
+    this.name = name;
+  };
+  VariableExpression.prototype.toString = function() {
+    return ['(VariableExpression name=', this.name,')'].join('');
+  };
+
+  function LiteralExpression(value) {
+    this.value = value;
+  };
+  LiteralExpression.prototype.toString = function() {
+    return ['(LiteralExpression value=', this.value,')'].join('');
+  };
+
+  function ProcedureCallExpression(proc, args) {
+    this.proc = proc;
+    this.args = args;
+  }
+  ProcedureCallExpression.prototype.toString = function() {
+    return ['(ProcedureCallExpression ', this.proc, this.args, ')'].join('');
+  };
+
+  function AssignmentExpression(lValue, rExpr) {
+    this.lValue;
+    this.rExpr = rExpr;
+  }
+  AssignmentExpression.prototype.toString = function() {
+    return ['(AssignmentExpression ', this.lValue, '=',
+      this.rExpr, ')'].join('');
+  }
+
+  function LabelExpression(label) {
+    this.label = label;
+  }
+  LabelExpression.prototype.toString = function() {
+    return ['(LabelExpression ', this.label, ')'].join('');
+  }
 
   function parseProgram() {
     var procedureExpression = parseProcedure();
@@ -95,7 +164,7 @@ module.exports = function(tokens) {
         parameterTypes[parameters[i]]));
     }
 
-    blockExpression = parseBlock(name);
+    blockExpression = new BlockExpression(parseBlock(name));
 
     var expr = new ProcedureExpression(name, parameterExpressions,
       blockExpression);
@@ -122,10 +191,6 @@ module.exports = function(tokens) {
     var types = {};
     while (currentToken.type === 'declarator') {
       var type = consumeType('declarator').value;
-      if (type === 'string') {
-        console.log(currentToken);
-        console.log(nextToken);
-      }
 
       // Take a and b of integer a, b, c
       while (nextToken.value === ',') {
@@ -147,15 +212,144 @@ module.exports = function(tokens) {
         expressions.push(parseVariableDeclaration());
       } else {
         // AOK TODO
-        console.log('Unknown token', currentToken);        
-        advanceTokenStream();
+        parseExpression();
       }
     }
     consumeValue('end');
-    console.log('AOK', currentToken);
+
     if (blockName) {
       consumeValue(blockName);
     }
+    return expressions;
+  }
+
+  function parseIf() {
+    var test;
+    var left;
+    var relation;
+    var right;
+    var thenBlock;
+    var elseBlock;
+
+    consumeValue('if');
+    left = parseExpression();
+    relation = consumeType('relationals');
+    right = parseExpression();
+
+    // TODO we could check to make sure left and right are
+    // either VariableExpression or LiteralExpression
+
+    test = new TestExpression(left, nextToken.value, right);
+
+    consumeValue('then');
+
+    thenBlock = parseExpression();
+
+    if (currentToken.value === 'else') {
+      consumeValue('else');
+      //...
+      elseBlock = parseExpression();
+    }
+    return new IfExpression(test, thenBlock, elseBlock);
+  }
+
+  function parseFor() {
+    var assignment;
+    var step;
+    var limit;
+    var forBlock;
+
+    consumeValue('for');
+    assignment = parseAssignmentExpression();
+    consumeValue('step');
+    step = consumeType('literal').value;// TODO parseInt(x, 10)
+    consumeValue('until');
+    limit = parseExpression();
+    consumeValue('do');
+    forBlock = parseExpression();
+  }
+
+  function parseExpression() {
+    var exp;
+    if (currentToken.value === 'if') {
+      return parseIf();
+    } else if (currentToken.value === 'begin') {
+      return parseBlock();
+    } else if (currentToken.value === 'for') {
+      return parseFor();
+    } else if (currentToken.type === 'name') {
+      if (nextToken.value === '(') {
+        return parseProcedureCall();
+      } else if (nextToken.value === ':=') {        
+        return parseAssignmentExpression();
+      } else if (nextToken.value === ':') {
+        return parseLabelExpression();
+      } else {
+        return new VariableExpression(consumeType('name').value);
+      }
+
+    } else if (currentToken.type === 'literal') {
+      return new LiteralExpression(consumeType('literal').value);
+    } else if (currentToken.value === '(') {
+      consumeValue('(');
+      exp = parseExpression();
+      consumeValue(')');
+      return exp;
+    } else {
+      debugger;
+      throw new Error('Unexpected Token: ' + fmt(currentToken) +
+        fmt(nextToken));
+
+
+    }
+  }
+
+  function parseProcedureCall() {
+    var proc = consumeType('name').value;
+    var args = parseArguments();
+    return new ProcedureCallExpression(proc, args);
+  }
+
+  function parseAssignmentExpression() {
+    var lValue;
+    var rExpression;
+    lValue = consumeType('name');
+    consumeValue(':=');    
+    return new AssignmentExpression(lValue, parseExpression());
+  }
+
+  function parseLabelExpression() {
+    var label = consumeType('name');
+    consumeValue(':');
+    return new LabelExpression(label);
+  }
+
+  function parseArguments() {
+    var args = [];
+    consumeValue('(');
+    // Take a and b of integer a, b, c
+    while (nextToken.value === ',') {
+      if (currentToken.type === 'name') {
+        args.push(new VariableExpression(consumeType('name').value));
+      } else if (currentToken.type === 'literal') {
+        args.push(new LiteralExpression(consumeType('literal').value));
+      } else {
+        throw new Error('Expected variable or literal, but got ' +
+          fmt(currentToken));
+      }
+      consumeValue(',');
+    }
+    if (currentToken.type === 'name') {
+        args.push(new VariableExpression(consumeType('name').value));
+      } else if (currentToken.type === 'literal') {
+        args.push(new LiteralExpression(consumeType('literal').value));
+      } else {
+        throw new Error('Expected variable or literal, but got ' +
+          fmt(currentToken));
+      }
+    // Take c of a, b, c
+    consumeValue(')');
+    return args;
   }
 
   function parseVariableDeclaration() {
@@ -164,17 +358,18 @@ module.exports = function(tokens) {
     // Take a and b of integer a, b, c
     while (nextToken.value === ',') {
       vars.push(new BlockVarExpression(consumeType('name').value,
-        type));        
+        type));
       consumeValue(',');
     }
     vars.push(new BlockVarExpression(consumeType('name').value,
         type));
     // Take c of a, b, c
+    return vars;
   }
 
   // etc
   function fmt(token) {
-    return ['[', token.type, ']=', token.value, ' line: ', token.lineNumber,
+    return ['[', token.type, '][', token.value, '] line: ', token.lineNumber,
     token.columnNumber].join('');
   }
 };

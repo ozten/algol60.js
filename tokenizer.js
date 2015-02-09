@@ -30,7 +30,12 @@ module.exports = function(source) {
                 currentToken = '';
                 tokens.push(makeStringToken(source[i], i - 1, 'relationals',
                     lineNumber, columnNumber));
-
+            } else if (source[i] === ':' && source[i + 1] === '=') {
+                saveCurrentToken(i);
+                currentToken = '';
+                tokens.push(makeStringToken(':=', i - 1, 'assignment',
+                    lineNumber, columnNumber));
+                i++;
             } else if (seperators.indexOf(source[i]) !== -1) {
                 saveCurrentToken(i);
                 currentToken = '';

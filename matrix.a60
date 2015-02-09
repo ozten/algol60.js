@@ -24,7 +24,7 @@ begin;
         for J := A step 1 until B do
           PRINT(A[I, J]);
     end ;
-    if B NOTEQUAL N then begin;
+    if B ≠ N then begin;
         A := B + 1;
         B := (if (B + 6) > N then N else B + 6);
         goto AA;
