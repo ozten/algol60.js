@@ -8,8 +8,8 @@ var seperators = [',', '.', ':', ':=', '?', 'step',
                   'until', 'while', 'comment'];
 var brackets = ['(', ')', '[', ']', '`', "'", 'begin', 'end'];
 var declarators = ['own', 'boolean', 'integer', 'real', 'array', 'switch',
-    'procedure'];
-var specificators = ['string', 'label', 'value'];
+    'procedure', 'string'];
+var specificators = ['label', 'value'];
 
 module.exports = function(source) {
     'use strict';
