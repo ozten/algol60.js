@@ -66,7 +66,7 @@ module.exports = function(source) {
                 columnNumber += 1;
             }
         }
-        tokens.push({
+        tokens.push({            
             type: 'eof',
             value: 'EOF',
             start: i + 1,
@@ -95,7 +95,7 @@ module.exports = function(source) {
 };
 
 function makeStringToken(str, startPos, type, lineNumber, columnNumber) {
-    return {
+    return {        
         type: type,
         value: str,
         start: startPos,
@@ -119,7 +119,7 @@ function makeToken(str, startPos, lineNumber, columnNumber) {
         return makeStringToken(str, startPos, 'declarator',
             lineNumber, columnNumber);
     } else if (util.isNumeric(str[0])) {
-        return {
+        return {            
             type: 'literal',
             value: parseInt(str, 10),
             start: startPos,

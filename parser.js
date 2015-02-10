@@ -100,6 +100,17 @@ module.exports = function(tokens) {
       ')'].join('');
   };
 
+  function ForExpresssion(assignment, step, limit, forBlock) {
+    this.assignment = assignment;
+    this.step = step;
+    this.limit = limit;
+    this.forBlock = forBlock;
+  }
+  ForExpresssion.prototype.toString = function() {
+    return ['(ForExpresssion ', this.assignment, ' step ', this.step,
+      ' until ', this.limit, this.forBlock, ')'].join('');
+  }
+
   function VariableExpression(name) {
     this.name = name;
   };
@@ -136,6 +147,15 @@ module.exports = function(tokens) {
   }
   LabelExpression.prototype.toString = function() {
     return ['(LabelExpression ', this.label, ')'].join('');
+  }
+
+  function ArrayAccessExpression(arrayName, indices) {
+    this.arrayName = arrayName;
+    this.indices = indices;
+  }
+  ArrayAccessExpression.prototype.toString = function() {
+    return ['(ArrayAccessExpression ', this.arrayName, '(',
+      this.indices.join(','), '))'].join('');
   }
 
   function parseProgram() {
@@ -212,7 +232,7 @@ module.exports = function(tokens) {
         expressions.push(parseVariableDeclaration());
       } else {
         // AOK TODO
-        parseExpression();
+        expressions.push(parseExpression());
       }
     }
     consumeValue('end');
@@ -267,6 +287,7 @@ module.exports = function(tokens) {
     limit = parseExpression();
     consumeValue('do');
     forBlock = parseExpression();
+    return new ForExpresssion(assignment, step, limit, forBlock); 
   }
 
   function parseExpression() {
@@ -280,6 +301,8 @@ module.exports = function(tokens) {
     } else if (currentToken.type === 'name') {
       if (nextToken.value === '(') {
         return parseProcedureCall();
+      } else if (nextToken.value === '[') {
+        return parseArrayAccess();
       } else if (nextToken.value === ':=') {        
         return parseAssignmentExpression();
       } else if (nextToken.value === ':') {
@@ -287,7 +310,6 @@ module.exports = function(tokens) {
       } else {
         return new VariableExpression(consumeType('name').value);
       }
-
     } else if (currentToken.type === 'literal') {
       return new LiteralExpression(consumeType('literal').value);
     } else if (currentToken.value === '(') {
@@ -310,6 +332,30 @@ module.exports = function(tokens) {
     return new ProcedureCallExpression(proc, args);
   }
 
+  function parseArrayAccess() {
+    var arrayName;
+    var indices = [];
+    arrayName = consumeType('name');
+
+    while (currentToken.value === '[') {
+      indices.push(parseIndexed());      
+    } 
+    return new ArrayAccessExpression(arrayName, indices);
+  }
+
+  function parseIndexed() {
+    var exp;
+    // [1] or [a]
+    consumeValue('[');    
+    if (currentToken.type === 'name') {
+      exp = new VariableExpression(consumeType('name').value);
+    } else if (currentToken.type === 'literal') {
+      exp = new LiteralExpression(consumeType('literal').value);
+    }
+    consumeValue(']');
+    return exp;
+  }
+
   function parseAssignmentExpression() {
     var lValue;
     var rExpression;
@@ -328,25 +374,11 @@ module.exports = function(tokens) {
     var args = [];
     consumeValue('(');
     // Take a and b of integer a, b, c
-    while (nextToken.value === ',') {
-      if (currentToken.type === 'name') {
-        args.push(new VariableExpression(consumeType('name').value));
-      } else if (currentToken.type === 'literal') {
-        args.push(new LiteralExpression(consumeType('literal').value));
-      } else {
-        throw new Error('Expected variable or literal, but got ' +
-          fmt(currentToken));
-      }
+    while (nextToken.value === ',') {      
+      parseExpression();
       consumeValue(',');
     }
-    if (currentToken.type === 'name') {
-        args.push(new VariableExpression(consumeType('name').value));
-      } else if (currentToken.type === 'literal') {
-        args.push(new LiteralExpression(consumeType('literal').value));
-      } else {
-        throw new Error('Expected variable or literal, but got ' +
-          fmt(currentToken));
-      }
+    parseExpression();
     // Take c of a, b, c
     consumeValue(')');
     return args;

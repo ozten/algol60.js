@@ -56,5 +56,6 @@ fs.readFile(process.argv[2], {encoding: 'utf8'}, function(err, data) {
 			console.log(i, tokens[i]);	
 		}
 	}
-	console.log(parser(tokens));
+	var ast = parser(tokens);
+	console.log(ast);
 });
