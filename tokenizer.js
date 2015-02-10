@@ -136,8 +136,7 @@ function makeToken(str, startPos, lineNumber, columnNumber) {
     } else if (util.isAlphabetic(str[0])) {
         return makeStringToken(str, startPos, 'name',
             lineNumber, columnNumber);
-    } else {
-        console.log(typeof str + '_' + str + '_' + str.length);
+    } else {        
         throw new Error('Unknown Token Type: ' + str + ' line number: ' +
             lineNumber + 'column number:' + columnNumber);
     }

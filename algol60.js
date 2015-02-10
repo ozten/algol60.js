@@ -51,11 +51,11 @@ function lex(source) {
 
 fs.readFile(process.argv[2], {encoding: 'utf8'}, function(err, data) {
 	var tokens = tokenizer(data);
-	if (true) {
+	if (false) {
 		for (var i=0; i<tokens.length; i++) {
 			console.log(i, tokens[i]);	
 		}
 	}
 	var ast = parser(tokens);
-	console.log(ast);
+	console.log(ast.toString());
 });

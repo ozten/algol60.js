@@ -6,7 +6,7 @@ module.exports = function(tokens) {
 
   var programExpression = parseProgram(tokens);
 
-  return programExpression;
+  
 
   // State Machine
   function advanceTokenStream() {
@@ -45,6 +45,11 @@ module.exports = function(tokens) {
     this.parameters = parameters;
     this.blockExpression = blockExpression;
   };
+
+console.log('loading');
+  console.log('ProcedureExpression.prototype', ProcedureExpression.prototype);
+  
+
   ProcedureExpression.prototype.toString = function() {
     return ['(ProcedureExpression name=', this.name, this.parameters,
       this.blockExpression, ')\n'].join('');
@@ -63,11 +68,12 @@ module.exports = function(tokens) {
     this.expressions = expressions;
   }
   BlockExpression.prototype.toString = function() {
-    var exp = "";
-    this.expressions.each(function(e) {
-      exp += e.toString();
-    });
-    return ['(BlockExpression ', exp].join('');
+    var exp = [];
+    for (e in this.expressions) {      
+      exp.push(this.expressions[e].toString());
+    }
+    
+    return ['(BlockExpression ', exp.join(';\n')].join('');
   };
 
 
@@ -188,6 +194,7 @@ module.exports = function(tokens) {
 
     var expr = new ProcedureExpression(name, parameterExpressions,
       blockExpression);
+    process.stdout.write(expr.toString());
     return expr;
   }
 
@@ -335,7 +342,7 @@ module.exports = function(tokens) {
   function parseArrayAccess() {
     var arrayName;
     var indices = [];
-    arrayName = consumeType('name');
+    arrayName = new VariableExpression(consumeType('name').value);
 
     while (currentToken.value === '[') {
       indices.push(parseIndexed());      
@@ -375,10 +382,10 @@ module.exports = function(tokens) {
     consumeValue('(');
     // Take a and b of integer a, b, c
     while (nextToken.value === ',') {      
-      parseExpression();
+      args.push(parseExpression());
       consumeValue(',');
     }
-    parseExpression();
+    args.push(parseExpression());
     // Take c of a, b, c
     consumeValue(')');
     return args;
@@ -404,5 +411,7 @@ module.exports = function(tokens) {
     return ['[', token.type, '][', token.value, '] line: ', token.lineNumber,
     token.columnNumber].join('');
   }
+
+  return programExpression;
 };
 
