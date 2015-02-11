@@ -6,7 +6,7 @@ module.exports = function(tokens) {
 
   var programExpression = parseProgram(tokens);
 
-  
+
 
   // State Machine
   function advanceTokenStream() {
@@ -40,19 +40,33 @@ module.exports = function(tokens) {
   // Super class
   function Expression() {};
 
+  // TODO... name this.propExpr versus this.prop for Expressions
+
   function ProcedureExpression(name, parameters, blockExpression) {
     this.name = name;
     this.parameters = parameters;
     this.blockExpression = blockExpression;
   };
-
-console.log('loading');
-  console.log('ProcedureExpression.prototype', ProcedureExpression.prototype);
-  
-
   ProcedureExpression.prototype.toString = function() {
     return ['(ProcedureExpression name=', this.name, this.parameters,
       this.blockExpression, ')\n'].join('');
+  };
+  ProcedureExpression.prototype.interperate = function(env) {
+    // arguments to this function should already be interperated
+    // TODO call by NAME instead of VALUE
+    env[this.name] = function() {
+      env.pushScope();
+      //TODO interperate parameters here or in populate?
+      for (var i=0; i < this.parameters.length; i++) {
+        var param = this.parameters[i].interperate(env);
+        env.populate(param, this.arguments[i]);
+      }
+      env.populate(this.parameters, arguments);
+      for (var i=0; i < this.blockExpression.length; i++) {
+        this.blockExpression[i].interperate(env);
+      }
+      env.popScope();
+    }
   };
 
   function ParameterExpression(name, type) {
@@ -63,17 +77,25 @@ console.log('loading');
     return ['(ParameterExpression name=', this.name, ':', this.type,
       ')'].join('');
   };
+  ParameterExpression.prototype.interperate = function(env) {
+    env.lookup(this.name)
+  };
 
   function BlockExpression(expressions) {
     this.expressions = expressions;
   }
   BlockExpression.prototype.toString = function() {
     var exp = [];
-    for (e in this.expressions) {      
+    for (e in this.expressions) {
       exp.push(this.expressions[e].toString());
     }
-    
+
     return ['(BlockExpression ', exp.join(';\n')].join('');
+  };
+  BlockExpression.prototype.interperate = function(env) {
+    for (e in this.expressions) {
+      e.interperate(env);
+    }
   };
 
 
@@ -254,7 +276,7 @@ console.log('loading');
     while (currentToken.value !== 'end') {
       if (currentToken.type === 'declarator') {
         expressions.push(parseVariableDeclaration());
-      } else {        
+      } else {
         expressions.push(parseExpression());
       }
     }
@@ -310,7 +332,7 @@ console.log('loading');
     limit = parseExpression();
     consumeValue('do');
     forBlock = parseExpression();
-    return new ForExpresssion(assignment, step, limit, forBlock); 
+    return new ForExpresssion(assignment, step, limit, forBlock);
   }
 
   function parseExpression() {
@@ -328,7 +350,7 @@ console.log('loading');
         return parseProcedureCall();
       } else if (nextToken.value === '[') {
         return parseArrayAccess();
-      } else if (nextToken.value === ':=') {        
+      } else if (nextToken.value === ':=') {
         return parseAssignmentExpression();
       } else if (nextToken.value === ':') {
         return parseLabelExpression();
@@ -364,13 +386,13 @@ console.log('loading');
 
     consumeValue('[');
 
-    while (nextToken.value === ',') {      
+    while (nextToken.value === ',') {
       //TODO exp isn't declared?
       exp = parseVariableOrLiteral();
       indices.push(exp);
       consumeValue(',');
     }
-    exp = parseVariableOrLiteral();    
+    exp = parseVariableOrLiteral();
     indices.push(exp);
     consumeValue(']');
     return new ArrayAccessExpression(arrayName, indices);
@@ -386,13 +408,13 @@ console.log('loading');
     return exp;
   }
 
-  
+
 
   function parseAssignmentExpression() {
     var lValue;
     var rExpression;
     lValue = consumeType('name');
-    consumeValue(':=');    
+    consumeValue(':=');
     return new AssignmentExpression(lValue, parseExpression());
   }
 
@@ -411,7 +433,7 @@ console.log('loading');
     var args = [];
     consumeValue('(');
     // Take a and b of integer a, b, c
-    while (nextToken.value === ',') {      
+    while (nextToken.value === ',') {
       args.push(parseExpression());
       consumeValue(',');
     }
