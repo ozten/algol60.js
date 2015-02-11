@@ -155,6 +155,13 @@ console.log('loading');
     return ['(LabelExpression ', this.label, ')'].join('');
   }
 
+  function GoToExpression(label) {
+    this.label = label;
+  }
+  GoToExpression.prototype.toString = function() {
+    return ['(GoToExpression ', this.label, ')'].join('');
+  }
+
   function ArrayAccessExpression(arrayName, indices) {
     this.arrayName = arrayName;
     this.indices = indices;
@@ -162,6 +169,16 @@ console.log('loading');
   ArrayAccessExpression.prototype.toString = function() {
     return ['(ArrayAccessExpression ', this.arrayName, '(',
       this.indices.join(','), '))'].join('');
+  }
+
+  function OperatorExpression(left, op, right) {
+    this.left = left;
+    this.op = op;
+    this.right = right;
+  }
+  OperatorExpression.prototype.toString = function() {
+    return ['(OperatorExpression ', this.left, ' ', this.op, ' ', this.right,
+      ')'].join('');
   }
 
   function parseProgram() {
@@ -237,8 +254,7 @@ console.log('loading');
     while (currentToken.value !== 'end') {
       if (currentToken.type === 'declarator') {
         expressions.push(parseVariableDeclaration());
-      } else {
-        // AOK TODO
+      } else {        
         expressions.push(parseExpression());
       }
     }
@@ -305,6 +321,8 @@ console.log('loading');
       return parseBlock();
     } else if (currentToken.value === 'for') {
       return parseFor();
+    } else if (currentToken.value === 'goto') {
+      return parseGoTo();
     } else if (currentToken.type === 'name') {
       if (nextToken.value === '(') {
         return parseProcedureCall();
@@ -314,6 +332,8 @@ console.log('loading');
         return parseAssignmentExpression();
       } else if (nextToken.value === ':') {
         return parseLabelExpression();
+      } else if (nextToken.type === 'arithmetics') {
+        return parseArithmetic();
       } else {
         return new VariableExpression(consumeType('name').value);
       }
@@ -328,8 +348,6 @@ console.log('loading');
       debugger;
       throw new Error('Unexpected Token: ' + fmt(currentToken) +
         fmt(nextToken));
-
-
     }
   }
 
@@ -344,24 +362,31 @@ console.log('loading');
     var indices = [];
     arrayName = new VariableExpression(consumeType('name').value);
 
-    while (currentToken.value === '[') {
-      indices.push(parseIndexed());      
-    } 
+    consumeValue('[');
+
+    while (nextToken.value === ',') {      
+      //TODO exp isn't declared?
+      exp = parseVariableOrLiteral();
+      indices.push(exp);
+      consumeValue(',');
+    }
+    exp = parseVariableOrLiteral();    
+    indices.push(exp);
+    consumeValue(']');
     return new ArrayAccessExpression(arrayName, indices);
   }
 
-  function parseIndexed() {
+  function parseVariableOrLiteral() {
     var exp;
-    // [1] or [a]
-    consumeValue('[');    
     if (currentToken.type === 'name') {
-      exp = new VariableExpression(consumeType('name').value);
-    } else if (currentToken.type === 'literal') {
-      exp = new LiteralExpression(consumeType('literal').value);
+      exp = consumeType('name');
+    } else {
+      exp = consumeType('literal');
     }
-    consumeValue(']');
     return exp;
   }
+
+  
 
   function parseAssignmentExpression() {
     var lValue;
@@ -375,6 +400,11 @@ console.log('loading');
     var label = consumeType('name');
     consumeValue(':');
     return new LabelExpression(label);
+  }
+
+  function parseGoTo() {
+    consumeValue('goto');
+    return new GoToExpression(consumeType('name'));
   }
 
   function parseArguments() {
@@ -404,6 +434,13 @@ console.log('loading');
         type));
     // Take c of a, b, c
     return vars;
+  }
+
+  function parseArithmetic() {
+    var left = parseVariableOrLiteral();
+    var op = consumeType('arithmetics');
+    var right = parseVariableOrLiteral();
+    return new OperatorExpression(left, op, right);
   }
 
   // etc
