@@ -78,7 +78,7 @@ module.exports = function(tokens) {
       ')'].join('');
   };
   ParameterExpression.prototype.evaluate = function(env) {
-    env.lookup(this.name);
+    return env.lookup(this.name);
   };
 
   function BlockExpression(expressions) {
@@ -93,9 +93,12 @@ module.exports = function(tokens) {
     return ['\n(BlockExpression ', exp.join(';\n')].join('');
   };
   BlockExpression.prototype.evaluate = function(env) {
+    env.pushScope();
     for (var e in this.expressions) {
-      e.evaluate(env);
+      var exp = this.expressions[e];
+      exp.evaluate(env);
     }
+    env.popScope();
   };
 
 
@@ -106,6 +109,23 @@ module.exports = function(tokens) {
   BlockVarExpression.prototype.toString = function() {
     return ['(BlockVarExpression name=', this.name, ':', this.type,
       ')'].join('');
+  };
+  BlockVarExpression.prototype.evaluate = function(env) {
+    env.declare(this.name, this.type);
+  };
+
+
+  function BlockVarExpressions(expressions) {
+    this.expressions = expressions;
+  }
+  BlockVarExpressions.prototype.toString = function() {
+    return ['(BlockVarExpressions expressions=', this.expressions.join(','),
+      ')'].join('');
+  };
+  BlockVarExpressions.prototype.evaluate = function(env) {
+    for (var e in this.expressions) {
+      this.expressions[e].evaluate(env);
+    }
   };
 
   function IfExpression(test, thenBlock, elseBlock) {
@@ -145,6 +165,13 @@ module.exports = function(tokens) {
   VariableExpression.prototype.toString = function() {
     return ['(VariableExpression name=', this.name.toString(),')'].join('');
   };
+  VariableExpression.prototype.evaluate = function(env) {
+    var value = env.lookup(this.name);
+    if (this.name === 'NLCR') {
+      value();
+    }
+    return value;
+  };
 
   function LiteralExpression(value) {
     this.value = value;
@@ -152,6 +179,9 @@ module.exports = function(tokens) {
   LiteralExpression.prototype.toString = function() {
     return ['(LiteralExpression value=', this.value,')'].join('');
   };
+  LiteralExpression.prototype.evaluate = function(env) {
+    return this.value;
+  }
 
   function ProcedureCallExpression(proc, args) {
     this.proc = proc;
@@ -159,6 +189,19 @@ module.exports = function(tokens) {
   }
   ProcedureCallExpression.prototype.toString = function() {
     return ['(ProcedureCallExpression ', this.proc, this.args, ')'].join('');
+  };
+  ProcedureCallExpression.prototype.evaluate = function(env) {
+    // this.proc is a VariableExpression
+    var proc = env.lookup(this.proc.name);
+
+    var args = [];
+    for (var i in this.args) {
+      args.push(this.args[i].evaluate(env));
+    }
+
+
+    var TODO = null; //???
+    return proc.apply(TODO, args);
   };
 
   function AssignmentExpression(lValue, rExpr) {
@@ -168,6 +211,9 @@ module.exports = function(tokens) {
   AssignmentExpression.prototype.toString = function() {
     return ['(AssignmentExpression ', this.lValue, ' <= ',
       this.rExpr, ')\n'].join('');
+  };
+  AssignmentExpression.prototype.evaluate = function(env) {
+    env.populate(this.lValue.name, this.rExpr.evaluate(env));
   };
 
   function LabelExpression(label) {
@@ -201,6 +247,11 @@ module.exports = function(tokens) {
   OperatorExpression.prototype.toString = function() {
     return ['(OperatorExpression ', this.left, ' ', this.op, ' ', this.right,
       ')'].join('');
+  };
+  OperatorExpression.prototype.evaluate = function(env) {
+    var lValue = this.left.evaluate(env);
+    var rValue = this.right.evaluate(env);
+    return env.lookup(this.op)(lValue, rValue);
   };
 
   parsers = {
@@ -291,7 +342,7 @@ module.exports = function(tokens) {
         parameterTypes[parameters[i]]));
     }
 
-    blockExpression = new BlockExpression(parseBlock());
+    blockExpression = parseBlock();
     consumeValue(name);
 
     var expr = new ProcedureExpression(name, parameterExpressions,
@@ -387,7 +438,7 @@ module.exports = function(tokens) {
     vars.push(new BlockVarExpression(consumeType('name').value,
         type));
     // Take c of a, b, c
-    return vars;
+    return new BlockVarExpressions(vars);
   }
 
   // PREFIX (

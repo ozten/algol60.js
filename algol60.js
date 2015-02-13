@@ -58,7 +58,8 @@ fs.readFile(process.argv[2], {encoding: 'utf8'}, function(err, data) {
 		}
 	}
 	var ast = parser(tokens);
-	console.log(ast.toString());
+	//console.log(ast.toString());
 	var env = new Environment();
+	//console.log(env);
 	ast.evaluate(env);
 });
