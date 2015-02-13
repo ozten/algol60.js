@@ -51,19 +51,20 @@ module.exports = function(tokens) {
     return ['(ProcedureExpression name=', this.name, this.parameters,
       this.blockExpression, ')\n'].join('');
   };
-  ProcedureExpression.prototype.interperate = function(env) {
-    // arguments to this function should already be interperated
+  ProcedureExpression.prototype.eval = function(env) {
+    // arguments to this function should already be evald
     // TODO call by NAME instead of VALUE
+    // TODO a function application is apply instead of eval?
     env[this.name] = function() {
       env.pushScope();
-      //TODO interperate parameters here or in populate?
+      //TODO eval parameters here or in populate?
       for (var i=0; i < this.parameters.length; i++) {
-        var param = this.parameters[i].interperate(env);
+        var param = this.parameters[i].eval(env);
         env.populate(param, this.arguments[i]);
       }
       env.populate(this.parameters, arguments);
       for (var i=0; i < this.blockExpression.length; i++) {
-        this.blockExpression[i].interperate(env);
+        this.blockExpression[i].eval(env);
       }
       env.popScope();
     }
@@ -77,7 +78,7 @@ module.exports = function(tokens) {
     return ['(ParameterExpression name=', this.name, ':', this.type,
       ')'].join('');
   };
-  ParameterExpression.prototype.interperate = function(env) {
+  ParameterExpression.prototype.eval = function(env) {
     env.lookup(this.name)
   };
 
@@ -92,9 +93,9 @@ module.exports = function(tokens) {
 
     return ['(BlockExpression ', exp.join(';\n')].join('');
   };
-  BlockExpression.prototype.interperate = function(env) {
+  BlockExpression.prototype.eval = function(env) {
     for (e in this.expressions) {
-      e.interperate(env);
+      e.eval(env);
     }
   };
 
@@ -204,8 +205,7 @@ module.exports = function(tokens) {
   }
 
   function parseProgram() {
-    var procedureExpression = parseProcedure();
-    return procedureExpression;
+    return parseExpression();
   }
 
   function parseProcedure() {
@@ -345,6 +345,8 @@ module.exports = function(tokens) {
       return parseFor();
     } else if (currentToken.value === 'goto') {
       return parseGoTo();
+    } else if (currentToken.value === 'procedure') {
+      return parseProcedure();
     } else if (currentToken.type === 'name') {
       if (nextToken.value === '(') {
         return parseProcedureCall();
