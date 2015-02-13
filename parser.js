@@ -2,13 +2,11 @@ module.exports = function(tokens) {
   var tokenIndex = -1;
   var currentToken;
   var nextToken;
+  var parsers;
+
   advanceTokenStream();
 
-  var programExpression = parseProgram(tokens);
-
-
-
-  // State Machine
+  /* State Machine */
   function advanceTokenStream() {
     tokenIndex++;
     currentToken = tokenIndex < tokens.length ? tokens[tokenIndex] : null;
@@ -36,9 +34,9 @@ module.exports = function(tokens) {
     }
   }
 
-  // Types
+  /* Types */
   // Super class
-  function Expression() {};
+  function Expression() {}
 
   // TODO... name this.propExpr versus this.prop for Expressions
 
@@ -46,40 +44,41 @@ module.exports = function(tokens) {
     this.name = name;
     this.parameters = parameters;
     this.blockExpression = blockExpression;
-  };
+  }
   ProcedureExpression.prototype.toString = function() {
-    return ['(ProcedureExpression name=', this.name, this.parameters,
+    return ['(ProcedureExpression name=', this.name, '\n\t', this.parameters,
       this.blockExpression, ')\n'].join('');
   };
-  ProcedureExpression.prototype.eval = function(env) {
-    // arguments to this function should already be evald
+  ProcedureExpression.prototype.evaluate = function(env) {
+    // arguments to this function should already be evaluated
     // TODO call by NAME instead of VALUE
-    // TODO a function application is apply instead of eval?
+    // TODO a function application is apply instead of evaluate?
     env[this.name] = function() {
+      var i;
       env.pushScope();
-      //TODO eval parameters here or in populate?
-      for (var i=0; i < this.parameters.length; i++) {
-        var param = this.parameters[i].eval(env);
+      //TODO evaluate parameters here or in populate?
+      for (i=0; i < this.parameters.length; i++) {
+        var param = this.parameters[i].evaluate(env);
         env.populate(param, this.arguments[i]);
       }
       env.populate(this.parameters, arguments);
-      for (var i=0; i < this.blockExpression.length; i++) {
-        this.blockExpression[i].eval(env);
+      for (i=0; i < this.blockExpression.length; i++) {
+        this.blockExpression[i].evaluate(env);
       }
       env.popScope();
-    }
+    };
   };
 
   function ParameterExpression(name, type) {
     this.name = name;
     this.type = type;
-  };
+  }
   ParameterExpression.prototype.toString = function() {
     return ['(ParameterExpression name=', this.name, ':', this.type,
       ')'].join('');
   };
-  ParameterExpression.prototype.eval = function(env) {
-    env.lookup(this.name)
+  ParameterExpression.prototype.evaluate = function(env) {
+    env.lookup(this.name);
   };
 
   function BlockExpression(expressions) {
@@ -87,15 +86,15 @@ module.exports = function(tokens) {
   }
   BlockExpression.prototype.toString = function() {
     var exp = [];
-    for (e in this.expressions) {
+    for (var e in this.expressions) {
       exp.push(this.expressions[e].toString());
     }
 
-    return ['(BlockExpression ', exp.join(';\n')].join('');
+    return ['\n(BlockExpression ', exp.join(';\n')].join('');
   };
-  BlockExpression.prototype.eval = function(env) {
-    for (e in this.expressions) {
-      e.eval(env);
+  BlockExpression.prototype.evaluate = function(env) {
+    for (var e in this.expressions) {
+      e.evaluate(env);
     }
   };
 
@@ -103,7 +102,7 @@ module.exports = function(tokens) {
   function BlockVarExpression(name, type) {
     this.name = name;
     this.type = type;
-  };
+  }
   BlockVarExpression.prototype.toString = function() {
     return ['(BlockVarExpression name=', this.name, ':', this.type,
       ')'].join('');
@@ -113,9 +112,9 @@ module.exports = function(tokens) {
     this.test = test;
     this.thenBlock = thenBlock;
     this.elseBlock = elseBlock;
-  };
+  }
   IfExpression.prototype.toString = function() {
-    return ['(IfExpression test=', this.test, '?', this.thenBlock,
+    return ['(IfExpression test=', this.test, ' ?\n\t', this.thenBlock, '\n\t',
       this.elseBlock, ')'].join('');
   };
 
@@ -136,20 +135,20 @@ module.exports = function(tokens) {
     this.forBlock = forBlock;
   }
   ForExpresssion.prototype.toString = function() {
-    return ['(ForExpresssion ', this.assignment, ' step ', this.step,
-      ' until ', this.limit, this.forBlock, ')'].join('');
-  }
+    return ['\n(ForExpresssion ', this.assignment, ' step ', this.step,
+      ' until ', this.limit, '\n\t\t', this.forBlock, ')'].join('');
+  };
 
   function VariableExpression(name) {
     this.name = name;
-  };
+  }
   VariableExpression.prototype.toString = function() {
-    return ['(VariableExpression name=', this.name,')'].join('');
+    return ['(VariableExpression name=', this.name.toString(),')'].join('');
   };
 
   function LiteralExpression(value) {
     this.value = value;
-  };
+  }
   LiteralExpression.prototype.toString = function() {
     return ['(LiteralExpression value=', this.value,')'].join('');
   };
@@ -163,27 +162,27 @@ module.exports = function(tokens) {
   };
 
   function AssignmentExpression(lValue, rExpr) {
-    this.lValue;
+    this.lValue = lValue;
     this.rExpr = rExpr;
   }
   AssignmentExpression.prototype.toString = function() {
-    return ['(AssignmentExpression ', this.lValue, '=',
-      this.rExpr, ')'].join('');
-  }
+    return ['(AssignmentExpression ', this.lValue, ' <= ',
+      this.rExpr, ')\n'].join('');
+  };
 
   function LabelExpression(label) {
     this.label = label;
   }
   LabelExpression.prototype.toString = function() {
-    return ['(LabelExpression ', this.label, ')'].join('');
-  }
+    return ['(LabelExpression ', this.label, ')\n'].join('');
+  };
 
   function GoToExpression(label) {
     this.label = label;
   }
   GoToExpression.prototype.toString = function() {
-    return ['(GoToExpression ', this.label, ')'].join('');
-  }
+    return ['(GoToExpression ', this.label, ')\n'].join('');
+  };
 
   function ArrayAccessExpression(arrayName, indices) {
     this.arrayName = arrayName;
@@ -192,7 +191,7 @@ module.exports = function(tokens) {
   ArrayAccessExpression.prototype.toString = function() {
     return ['(ArrayAccessExpression ', this.arrayName, '(',
       this.indices.join(','), '))'].join('');
-  }
+  };
 
   function OperatorExpression(left, op, right) {
     this.left = left;
@@ -202,12 +201,73 @@ module.exports = function(tokens) {
   OperatorExpression.prototype.toString = function() {
     return ['(OperatorExpression ', this.left, ' ', this.op, ' ', this.right,
       ')'].join('');
+  };
+
+  parsers = {
+    prefix: {
+      'if': parseIf,
+      'begin': parseBlock,
+      'for': parseFor,
+      'goto': parseGoTo,
+      'procedure': parseProcedure,
+      '(': parseGroupedExpression
+    },
+    infix: {
+      '(':  { '10': parseProcedureCall },
+      '[':  { '40': parseArrayAccess },
+      ':=': { '60': parseAssignmentExpression },
+      ':':  { '20': parseLabelExpression },
+      '+':   { '30': parseArithmetic },
+      '-':   { '30': parseArithmetic },
+      '*':   { '40': parseArithmetic },
+      '/':   { '40': parseArithmetic }
+
+      // TODO currently if bakes in the comparision operator,
+      // but maybe this should just be an expression
+      // and an infix expression?
+
+      //// TODO parseAssignment expression could just be infix?
+    }
+  };
+
+  /* driver */
+  function parseExpression() {
+    var exp;
+    var prefixParser = parsers.prefix[currentToken.value];
+    var infixParser;
+
+    if (prefixParser !== undefined) {
+      exp = prefixParser();
+    } else if (['name', 'literal'].indexOf(currentToken.type) != -1) {
+      exp = parseVariableOrLiteral();
+    } else {
+      throw new Error('Unexpected Token: ' + fmt(currentToken) +
+        fmt(nextToken));
+    }
+
+    var infixExp;
+
+    var infixParserMode = parsers.infix[currentToken.value];
+    while (infixParserMode !== undefined) {
+      var key = Object.keys(infixParserMode)[0];
+      var precedence = parseInt(key, 10);
+
+      // TODO compare our precedence with theirs
+      infixParser = infixParserMode[key];
+
+
+
+      infixExp = infixParser(infixExp || exp);
+      // Can we keep parsing infix?
+      infixParserMode = parsers.infix[currentToken.value]
+    }
+
+    return infixExp || exp;
   }
 
-  function parseProgram() {
-    return parseExpression();
-  }
+  /* parsers */
 
+  // PREFIX procedure
   function parseProcedure() {
     var name;
     var parameters;
@@ -229,7 +289,8 @@ module.exports = function(tokens) {
         parameterTypes[parameters[i]]));
     }
 
-    blockExpression = new BlockExpression(parseBlock(name));
+    blockExpression = new BlockExpression(parseBlock());
+    consumeValue(name);
 
     var expr = new ProcedureExpression(name, parameterExpressions,
       blockExpression);
@@ -237,6 +298,153 @@ module.exports = function(tokens) {
     return expr;
   }
 
+  // PREFIX begin
+  function parseBlock() {
+    var expressions = [];
+    consumeValue('begin');
+
+    while (currentToken.value !== 'end') {
+      if (currentToken.type === 'declarator') {
+        expressions.push(parseVariableDeclaration());
+      } else {
+        expressions.push(parseExpression());
+      }
+    }
+    consumeValue('end');
+    return new BlockExpression(expressions);
+  }
+
+  // PREFIX if
+  function parseIf() {
+    var test;
+    var left;
+    var relation;
+    var right;
+    var thenBlock;
+    var elseBlock;
+
+    consumeValue('if');
+    left = parseExpression();
+    relation = consumeType('relationals').value;
+    right = parseExpression();
+
+    // TODO we could check to make sure left and right are
+    // either VariableExpression or LiteralExpression
+
+
+    test = new TestExpression(left, relation, right);
+
+    consumeValue('then');
+
+    thenBlock = parseExpression();
+
+    if (currentToken.value === 'else') {
+      consumeValue('else');
+      //...
+      elseBlock = parseExpression();
+    }
+    return new IfExpression(test, thenBlock, elseBlock);
+  }
+
+  // PREFIX for
+  function parseFor() {
+    var assignment;
+    var step;
+    var limit;
+    var forBlock;
+
+    consumeValue('for');
+    // TODO let the infix grammer take care of this?
+    var left = parseVariableOrLiteral();
+    assignment = parseAssignmentExpression(left);
+    consumeValue('step');
+    step = consumeType('literal').value;// TODO parseInt(x, 10)
+    consumeValue('until');
+    limit = parseExpression();
+    consumeValue('do');
+    forBlock = parseExpression();
+    return new ForExpresssion(assignment, step, limit, forBlock);
+  }
+
+  // PREFIX goto
+  function parseGoTo() {
+    consumeValue('goto');
+    return new GoToExpression(consumeType('name').value);
+  }
+
+  // PREFIX DECLARATION NAME
+  function parseVariableDeclaration() {
+    var type = consumeType('declarator').value;
+    var vars = [];
+    // Take a and b of integer a, b, c
+    while (nextToken.value === ',') {
+      vars.push(new BlockVarExpression(consumeType('name').value,
+        type));
+      consumeValue(',');
+    }
+    vars.push(new BlockVarExpression(consumeType('name').value,
+        type));
+    // Take c of a, b, c
+    return vars;
+  }
+
+  // PREFIX (
+  function parseGroupedExpression() {
+    var exp;
+    consumeValue('(');
+    exp = parseExpression();
+    consumeValue(')');
+    return exp;
+  }
+
+  // INFIX NAME ( EXPR
+  function parseProcedureCall(procName) {
+    var args = parseArguments();
+    return new ProcedureCallExpression(procName, args);
+  }
+
+
+
+  // INFIX NAME []
+  function parseArrayAccess(arrayName) {
+    var indices = [];
+
+    consumeValue('[');
+
+    while (nextToken.value === ',') {
+      //TODO exp isn't declared?
+      exp = parseVariableOrLiteral();
+      indices.push(exp);
+      consumeValue(',');
+    }
+    exp = parseVariableOrLiteral();
+    indices.push(exp);
+    consumeValue(']');
+    return new ArrayAccessExpression(arrayName, indices);
+  }
+
+  // infix NAME := EXPR
+  function parseAssignmentExpression(left) {
+    var rExpression;
+    consumeValue(':=');
+    return new AssignmentExpression(left, parseExpression());
+  }
+
+  // INFIX NAME :
+  function parseLabelExpression(left) {
+    consumeValue(':');
+    return new LabelExpression(left);
+  }
+
+  // INFIX NAMEorLITERAL ARITHMETICS
+  // Explode into + - etc
+  function parseArithmetic(left) {
+    var op = consumeType('arithmetics').value;
+    var right = parseVariableOrLiteral();
+    return new OperatorExpression(left, op, right);
+  }
+
+  /* Helper functions */
   function parseParameters() {
     var params = [];
     consumeValue('(');
@@ -251,6 +459,20 @@ module.exports = function(tokens) {
     }
     consumeValue(')');
     return params;
+  }
+
+  function parseArguments() {
+    var args = [];
+    consumeValue('(');
+    // Take a and b of integer a, b, c
+    while (nextToken.value === ',') {
+      args.push(parseExpression());
+      consumeValue(',');
+    }
+    args.push(parseExpression());
+    // Take c of a, b, c
+    consumeValue(')');
+    return args;
   }
 
   function parseParameterTypes() {
@@ -269,202 +491,14 @@ module.exports = function(tokens) {
     return types;
   }
 
-  function parseBlock(blockName) {
-    var expressions = [];
-    consumeValue('begin');
-
-    while (currentToken.value !== 'end') {
-      if (currentToken.type === 'declarator') {
-        expressions.push(parseVariableDeclaration());
-      } else {
-        expressions.push(parseExpression());
-      }
-    }
-    consumeValue('end');
-
-    if (blockName) {
-      consumeValue(blockName);
-    }
-    return expressions;
-  }
-
-  function parseIf() {
-    var test;
-    var left;
-    var relation;
-    var right;
-    var thenBlock;
-    var elseBlock;
-
-    consumeValue('if');
-    left = parseExpression();
-    relation = consumeType('relationals');
-    right = parseExpression();
-
-    // TODO we could check to make sure left and right are
-    // either VariableExpression or LiteralExpression
-
-    test = new TestExpression(left, nextToken.value, right);
-
-    consumeValue('then');
-
-    thenBlock = parseExpression();
-
-    if (currentToken.value === 'else') {
-      consumeValue('else');
-      //...
-      elseBlock = parseExpression();
-    }
-    return new IfExpression(test, thenBlock, elseBlock);
-  }
-
-  function parseFor() {
-    var assignment;
-    var step;
-    var limit;
-    var forBlock;
-
-    consumeValue('for');
-    assignment = parseAssignmentExpression();
-    consumeValue('step');
-    step = consumeType('literal').value;// TODO parseInt(x, 10)
-    consumeValue('until');
-    limit = parseExpression();
-    consumeValue('do');
-    forBlock = parseExpression();
-    return new ForExpresssion(assignment, step, limit, forBlock);
-  }
-
-  function parseExpression() {
-    var exp;
-    if (currentToken.value === 'if') {
-      return parseIf();
-    } else if (currentToken.value === 'begin') {
-      return parseBlock();
-    } else if (currentToken.value === 'for') {
-      return parseFor();
-    } else if (currentToken.value === 'goto') {
-      return parseGoTo();
-    } else if (currentToken.value === 'procedure') {
-      return parseProcedure();
-    } else if (currentToken.type === 'name') {
-      if (nextToken.value === '(') {
-        return parseProcedureCall();
-      } else if (nextToken.value === '[') {
-        return parseArrayAccess();
-      } else if (nextToken.value === ':=') {
-        return parseAssignmentExpression();
-      } else if (nextToken.value === ':') {
-        return parseLabelExpression();
-      } else if (nextToken.type === 'arithmetics') {
-        return parseArithmetic();
-      } else {
-        return new VariableExpression(consumeType('name').value);
-      }
-    } else if (currentToken.type === 'literal') {
-      return new LiteralExpression(consumeType('literal').value);
-    } else if (currentToken.value === '(') {
-      consumeValue('(');
-      exp = parseExpression();
-      consumeValue(')');
-      return exp;
-    } else {
-      debugger;
-      throw new Error('Unexpected Token: ' + fmt(currentToken) +
-        fmt(nextToken));
-    }
-  }
-
-  function parseProcedureCall() {
-    var proc = consumeType('name').value;
-    var args = parseArguments();
-    return new ProcedureCallExpression(proc, args);
-  }
-
-  function parseArrayAccess() {
-    var arrayName;
-    var indices = [];
-    arrayName = new VariableExpression(consumeType('name').value);
-
-    consumeValue('[');
-
-    while (nextToken.value === ',') {
-      //TODO exp isn't declared?
-      exp = parseVariableOrLiteral();
-      indices.push(exp);
-      consumeValue(',');
-    }
-    exp = parseVariableOrLiteral();
-    indices.push(exp);
-    consumeValue(']');
-    return new ArrayAccessExpression(arrayName, indices);
-  }
-
   function parseVariableOrLiteral() {
     var exp;
     if (currentToken.type === 'name') {
-      exp = consumeType('name');
+      exp = new VariableExpression(consumeType('name').value);
     } else {
-      exp = consumeType('literal');
+      exp = new LiteralExpression(consumeType('literal').value);
     }
     return exp;
-  }
-
-
-
-  function parseAssignmentExpression() {
-    var lValue;
-    var rExpression;
-    lValue = consumeType('name');
-    consumeValue(':=');
-    return new AssignmentExpression(lValue, parseExpression());
-  }
-
-  function parseLabelExpression() {
-    var label = consumeType('name');
-    consumeValue(':');
-    return new LabelExpression(label);
-  }
-
-  function parseGoTo() {
-    consumeValue('goto');
-    return new GoToExpression(consumeType('name'));
-  }
-
-  function parseArguments() {
-    var args = [];
-    consumeValue('(');
-    // Take a and b of integer a, b, c
-    while (nextToken.value === ',') {
-      args.push(parseExpression());
-      consumeValue(',');
-    }
-    args.push(parseExpression());
-    // Take c of a, b, c
-    consumeValue(')');
-    return args;
-  }
-
-  function parseVariableDeclaration() {
-    var type = consumeType('declarator').value;
-    var vars = [];
-    // Take a and b of integer a, b, c
-    while (nextToken.value === ',') {
-      vars.push(new BlockVarExpression(consumeType('name').value,
-        type));
-      consumeValue(',');
-    }
-    vars.push(new BlockVarExpression(consumeType('name').value,
-        type));
-    // Take c of a, b, c
-    return vars;
-  }
-
-  function parseArithmetic() {
-    var left = parseVariableOrLiteral();
-    var op = consumeType('arithmetics');
-    var right = parseVariableOrLiteral();
-    return new OperatorExpression(left, op, right);
   }
 
   // etc
@@ -472,7 +506,6 @@ module.exports = function(tokens) {
     return ['[', token.type, '][', token.value, '] line: ', token.lineNumber,
     token.columnNumber].join('');
   }
-
-  return programExpression;
+  return parseExpression();
 };
 
