@@ -226,15 +226,16 @@ module.exports = function(tokens) {
       // but maybe this should just be an expression
       // and an infix expression?
 
-      //// TODO parseAssignment expression could just be infix?
     }
   };
 
   /* driver */
-  function parseExpression() {
+  function parseExpression(priorPrecedence) {
     var exp;
     var prefixParser = parsers.prefix[currentToken.value];
     var infixParser;
+
+    priorPrecedence = priorPrecedence || -1;
 
     if (prefixParser !== undefined) {
       exp = prefixParser();
@@ -252,12 +253,13 @@ module.exports = function(tokens) {
       var key = Object.keys(infixParserMode)[0];
       var precedence = parseInt(key, 10);
 
+      if (precedence < priorPrecedence) {
+        return exp;
+      }
+
       // TODO compare our precedence with theirs
       infixParser = infixParserMode[key];
-
-
-
-      infixExp = infixParser(infixExp || exp);
+      infixExp = infixParser(infixExp || exp, precedence);
       // Can we keep parsing infix?
       infixParserMode = parsers.infix[currentToken.value]
     }
@@ -438,9 +440,9 @@ module.exports = function(tokens) {
 
   // INFIX NAMEorLITERAL ARITHMETICS
   // Explode into + - etc
-  function parseArithmetic(left) {
+  function parseArithmetic(left, precedence) {
     var op = consumeType('arithmetics').value;
-    var right = parseVariableOrLiteral();
+    var right = parseExpression(precedence);
     return new OperatorExpression(left, op, right);
   }
 
